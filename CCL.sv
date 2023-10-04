@@ -4,12 +4,12 @@ module CCLU	 ( input [1:0] command,
               input [31:0] address,
               input [31:0] counter, 
               input [31:0] inTarget,
-              input bit reset,
+              input reset,
               input clock,
               output reg [31:0] outTarget,
               output reg valid, 
               output reg full, 
-              output reg error)
+              output reg error);
   
   // define stack 
   reg [31:0] CCladdress [`CCLUDepth];
@@ -22,101 +22,112 @@ module CCLU	 ( input [1:0] command,
   always @ (posedge clock) begin
     
     // reset bit is 1 
-    if (reset == 1'b1) begin
+    if (reset == 1) begin
       if (command == 2'b01 || command == 2'b10 || command == 2'b11) begin
-        error=1'b1;
-      	outTarget <= 32'b0;
-        full<=1'b0;
-      	valid <= 1'b0;
+        error <= 1;
+        full<=0;
+      	valid <= 0;
       end 
 
       else begin
         // empty the stack 
         index <= 0;
-        error<=1'b0;
-      	outTarget <= 32'b0;
-        full<=1'b0;
-      	valid <= 1'b0;
+        error<=0;
+      	outTarget <= 0;
+        full<=0;
+      	valid <= 0;
       end 
     end
 
         
     // reset bit is 0
-    else if (reset == 1'b0) begin
+    else if (reset == 0) begin
       if (command == 2'b00) begin
-        valid<=1'b0;
-        error<=1'b0;
+        valid<=0;
+        error<=0;
+        full <=0;
       end 
       else if ( command == 2'b11) begin
-        error = 1'b1;
-      	valid <= 1'b0;
+        error = 1;
+      	valid <= 0;
+        full=0;
       end
-      else if ( command == 2'b10) begin
+      else if ( command == 2'b01) begin
         // examine  top element and call task continue / task ccl
-        error <= 1'b0;
-        if ( address == CCLaddress[index] && !full)
-          continueTask();
-        else if ( address != CCLaddress[index])
-          CCLTask();
+        if ( address == CCladdress[index] )
+          continueTask;
+        else if ( address != CCladdress[index] && !full)
+          CCLTask;
       end
-      else if (command == 2'b01) begin
+      else if (command == 2'b10) begin
         //call break task
-        breakTask();
+        breakTask;
       end
        
     end
   end
   
   // continue task
-  task automatic continueTask ();
-    full <= 1'b0;
-    valid <= 1'b1;
+  task automatic continueTask();
+    full <= 0;
+    valid <= 1;
+    error<=0;
     outTarget <= inTarget;
-    if ( count[index] == 1'b1)
-      index<=index-1;
-    else 
-      count[index] <= count[index]-1;
-
-  endtask
-  
-  //CCL task
-  task automatic CCLTask ();
-    if (count[index] == 1'b0) begin
-        error = 1'b1;
-        valid<= 1'b0;
-        full<=1'b0;
-      end
-    else if (count[index] == 1'b1) begin
-        index<=index-1;
-        error<=1'b0;
-        valid<=1'b1;
-        outTarget<=inTarget;
-        full<=1'b0;
-    end
-    else if ( index==16) begin
-        full<=1'b1;
-        error<=1'b1;
-        valid<=1'b0;
+    if ( count[index] == 1)begin
+      index <= index-1;
+      full<=0;
     end
     else begin
-        count[index+1]<=counter-1;
-      	CCLaddress[index+'d1] <= address;
-        outTarget<=inTarget;
-        valid<=1'b1;
-        full<=1'b0;
+      count[index] <= count[index]-1;
+      if (index == (`CLLUDepth-1))
+        full<=1;
     end
-  endtask
+  endtask: continueTask
+  
+  //CCL task
+  task automatic CCLTask();
+    if (index == (`CCLUDepth-1)) begin //examining if the stack is full before adding
+      full <=1;
+      error<=0;
+    end
+    else begin
+      full<=0;
+      if (counter == 0) begin
+        error <=1;
+      end
+      else if ( counter ==1) begin
+        outTarget<=inTarget;
+        error <=0;
+        valid<=1;
+      end
+      else begin
+        CCladdress[index] <=address;
+        count[index] <=counter-1;
+        valid<=1;
+        outTarget<=inTarget;
+        error<=0;
+        index<=index+1;
+      end
+    end
+  endtask: CCLTask
   
   // break task
   task automatic breakTask();
-     full<=1'b0;
-     valid<=1'b0;
-     outTarget<=inTarget;
-     error<=1'b0;
-     index=index-1;
-  endtask
+    if (index==0) begin
+      full<=0;
+      error<=1;
+      valid<=0;
+    end
+    else begin
+      full<=0;
+      valid<=0;
+      outTarget<=inTarget;
+      error<=0;
+      index<=index-1;
+    end
+  endtask: breakTask
 
-endmodule
+endmodule: CCLU
 
       
          
