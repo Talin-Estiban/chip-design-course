@@ -8,4 +8,5 @@ Inside the repository, you'll find:
 - Design specifications sheet.
 - Verification plan.
 - RTL design.
+
 Feel free to delve into the details of the chip design process that I have documented and implemented. This project represents a valuable part of my ongoing journey in chip design and verification.
